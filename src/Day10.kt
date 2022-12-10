@@ -75,6 +75,9 @@ fun main() {
         while (commands.any() || addInProg) {
             xHistory.add(xReg)
 
+            val pixelLit = abs(xReg - (clock - 1)) <= 1
+            pixels.add(pixelLit)
+
             if (addInProg) {
                 xReg += addNext
                 addInProg = false
@@ -86,9 +89,6 @@ fun main() {
                     addNext = cmd.arg!!
                 }
             }
-
-            val pixelLit = abs(xReg - clock) <= 1
-            pixels.add(pixelLit)
 
             if (clock == 40) {
                 clock = 1
