@@ -1,124 +1,124 @@
-data class Spot(
-    val elevation: Int,
-    val isStart: Boolean,
-    val isEnd: Boolean
-)
+import java.lang.Math.abs
+import java.util.*
 
-fun Pair<Int, Int>.key() = "${first}_$second"
-
-fun List<List<Spot>>.get(coords: Pair<Int, Int>): Spot {
-    return this[coords.first][coords.second]!!
+class Graph {
+    val nodes: MutableSet<Node> = HashSet()
+    fun findByKey(key: String) = nodes.find { it.key == key }!!
 }
 
-fun unvisitedNeighbors(coords: Pair<Int, Int>, grid: List<List<Spot>>, visited: Set<String>): List<Pair<Int, Int>> {
-    val neighbors = mutableListOf<Pair<Int, Int>>()
+class Node(
+        val key: String,
+        val elevation: Int,
+        val isStart: Boolean,
+        val isEnd: Boolean
+) {
+    var shortestPath: List<Node> = LinkedList()
+    var distance = Int.MAX_VALUE
+    var adjacentNodes: MutableMap<Node, Int> = HashMap()
 
-    if (coords.first != 0) {
-        neighbors.add(coords.first - 1 to coords.second)
+    // Reversed Direction (End to Start)
+    fun addNeighborConditionally(neighbor: Node) {
+        if (abs(this.elevation - neighbor.elevation) <= 1) {
+            this.adjacentNodes.put(neighbor, 1)
+            neighbor.adjacentNodes.put(this, 1)
+        } else if (neighbor.elevation < this.elevation) {
+            neighbor.adjacentNodes.put(this, 1)
+        } else {
+            this.adjacentNodes.put(neighbor, 1)
+        }
     }
+}
 
-    if (coords.second != 0) {
-        neighbors.add(coords.first to coords.second - 1)
+fun calculateShortestPathFromSource(graph: Graph, source: Node) {
+    source.distance = 0
+    val settledNodes: MutableSet<Node> = HashSet()
+    val unsettledNodes: MutableSet<Node> = HashSet()
+    unsettledNodes.add(source)
+    while (unsettledNodes.size != 0) {
+        val currentNode: Node = getLowestDistanceNode(unsettledNodes)
+        unsettledNodes.remove(currentNode)
+        currentNode.adjacentNodes.forEach { (t, u) ->
+            if (!settledNodes.contains(t)) {
+                calculateMinimumDistance(t, u, currentNode)
+                unsettledNodes.add(t)
+            }
+        }
+        settledNodes.add(currentNode)
     }
+}
 
-    if (coords.first < (grid.size - 1)) {
-        neighbors.add(coords.first + 1 to coords.second)
+fun getLowestDistanceNode(unsettledNodes: Set<Node>): Node {
+    var lowestDistanceNode: Node? = null
+    var lowestDistance = Int.MAX_VALUE
+    for (node in unsettledNodes) {
+        val nodeDistance = node.distance
+        if (nodeDistance < lowestDistance) {
+            lowestDistance = nodeDistance
+            lowestDistanceNode = node
+        }
     }
+    return lowestDistanceNode!!
+}
 
-    if (coords.second < (grid[0].size - 1)) {
-        neighbors.add(coords.first to coords.second + 1)
+fun calculateMinimumDistance(evaluationNode: Node, edgeWeigh: Int, sourceNode: Node) {
+    val sourceDistance = sourceNode.distance
+    if (sourceDistance + edgeWeigh < evaluationNode.distance) {
+        evaluationNode.distance = sourceDistance + edgeWeigh
+        val shortestPath = LinkedList(sourceNode.shortestPath)
+        shortestPath.add(sourceNode)
+        evaluationNode.shortestPath = shortestPath
     }
-
-    return neighbors.filter { !visited.contains(it.key()) }
 }
 
 fun main() {
-    fun parse(input: List<String>): List<List<Spot>> {
-        return input.map { row ->
-            row.map { cell ->
-                val isStart = cell == 'S'
-                val isEnd = cell == 'E'
-                val elevation = if (isStart) 0
-                else if (isEnd) 25
-                else cell.code - 97
+    fun parse(input: List<String>): Graph {
+        val graph = Graph()
 
-                Spot(
-                    elevation = elevation,
-                    isStart = isStart,
-                    isEnd = isEnd
-                )
-            }
-        }
-    }
+        // Top -> Down
+        // Left -> Right
+        input.forEachIndexed { o, row ->
+            row.forEachIndexed { i, char ->
+                val isStart = char == 'S'
+                val isEnd = char == 'E'
+                val elevation = if (isStart) 0 else if (isEnd) 25 else char.code - 97
 
-    fun part1(input: List<String>): Int {
-        val grid = parse(input)
+                val currNode = Node("$o $i", elevation, isStart, isEnd)
 
-        val spotDistances = mutableMapOf<String, Int>()
+                graph.nodes.add(currNode)
 
-        fun findMinPathToEnd(currCoords: Pair<Int, Int>, currStepCount: Int, visited: Set<String>): Int {
-            val currSpot = grid.get(currCoords)
-
-            if (currSpot.isEnd) {
-                spotDistances[currCoords.key()] = 0
-                return 0
-            }
-//            spotDistances[currCoords.key()].let {
-//                if (it != null) return it
-//            }
-
-            return unvisitedNeighbors(currCoords, grid, visited).filter { neighborCoords ->
-                grid.get(neighborCoords).let { neighbor ->
-                    currSpot.elevation <= neighbor.elevation + 1
+                // Check Neighbor Up
+                if (o > 0) {
+                    graph.findByKey("${o - 1} $i").also { neighbor ->
+                        currNode.addNeighborConditionally(neighbor)
+                    }
                 }
-            }.let { options ->
-                if (options.none()) return 100000000
-                else {
-                    options.minOf { o ->
-                        findMinPathToEnd(o, currStepCount + 1, visited.plus(currCoords.key()))
-                    }.also {
-                        spotDistances[currCoords.key()] = currStepCount + 1 + it
+
+                // Check Neighbor Left
+                if (i > 0) {
+                    graph.findByKey("$o ${i - 1}").also { neighbor ->
+                        currNode.addNeighborConditionally(neighbor)
                     }
                 }
             }
         }
 
-        var endOuterIdx = -1
-        var endInnerIdx = -1
-        var startOuterIdx = -1
-        var startInnerIdx = -1
+        return graph
+    }
 
-        grid.forEachIndexed { o, spots ->
-            spots.forEachIndexed { i, spot ->
-                if (spot.isEnd) {
-                    endOuterIdx = o
-                    endInnerIdx = i
-                }
-                if (spot.isStart) {
-                    startOuterIdx = o
-                    startInnerIdx = i
-                }
-            }
-        }
+    fun part1(input: List<String>): Int {
+        val graph = parse(input)
 
-        // fill spotDistances map
-        var toCheck = mutableSetOf<Pair<Int, Int>>()
-        toCheck.add(endOuterIdx to endInnerIdx)
-        while (toCheck.any()) {
-            val toCheckNext = mutableListOf<Pair<Int, Int>>()
-            toCheck.forEach { c ->
-                findMinPathToEnd(c, 0, emptySet())
-                toCheckNext.addAll(unvisitedNeighbors(c, grid, spotDistances.keys))
-            }
-            toCheck.clear()
-            toCheck.addAll(toCheckNext)
-        }
+        calculateShortestPathFromSource(graph, graph.nodes.find { it.isEnd }!!)
 
-        return spotDistances["${startOuterIdx}_$startInnerIdx"]!!
+        return graph.nodes.find { it.isStart }!!.distance
     }
 
     fun part2(input: List<String>): Int {
-        return 0
+        val graph = parse(input)
+
+        calculateShortestPathFromSource(graph, graph.nodes.find { it.isEnd }!!)
+
+        return graph.nodes.filter { it.elevation == 0 }.minOf { it.distance }
     }
 
     val testInput = readInput("Day12_test")
@@ -128,7 +128,7 @@ fun main() {
     check(part1(testInput) == 31)
     println("Part 1 [Real] : ${part1(input)}")
 
-//    println("Part 2 [Test] : ${part2(testInput)}")
-//    check(part2(testInput) == 2713310)
-//    println("Part 2 [Real] : ${part2(input)}")
+    println("Part 2 [Test] : ${part2(testInput)}")
+    check(part2(testInput) == 29)
+    println("Part 2 [Real] : ${part2(input)}")
 }
