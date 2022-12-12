@@ -7,10 +7,10 @@ class Graph {
 }
 
 class Node(
-        val key: String,
-        val elevation: Int,
-        val isStart: Boolean,
-        val isEnd: Boolean
+    val key: String,
+    val elevation: Int,
+    val isStart: Boolean,
+    val isEnd: Boolean
 ) {
     var shortestPath: List<Node> = LinkedList()
     var distance = Int.MAX_VALUE
@@ -29,7 +29,7 @@ class Node(
     }
 }
 
-fun calculateShortestPathFromSource(graph: Graph, source: Node) {
+fun calculateShortestPathFromSource(source: Node) {
     source.distance = 0
     val settledNodes: MutableSet<Node> = HashSet()
     val unsettledNodes: MutableSet<Node> = HashSet()
@@ -108,7 +108,7 @@ fun main() {
     fun part1(input: List<String>): Int {
         val graph = parse(input)
 
-        calculateShortestPathFromSource(graph, graph.nodes.find { it.isEnd }!!)
+        calculateShortestPathFromSource(graph.nodes.find { it.isEnd }!!)
 
         return graph.nodes.find { it.isStart }!!.distance
     }
@@ -116,7 +116,7 @@ fun main() {
     fun part2(input: List<String>): Int {
         val graph = parse(input)
 
-        calculateShortestPathFromSource(graph, graph.nodes.find { it.isEnd }!!)
+        calculateShortestPathFromSource(graph.nodes.find { it.isEnd }!!)
 
         return graph.nodes.filter { it.elevation == 0 }.minOf { it.distance }
     }
