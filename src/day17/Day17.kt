@@ -3,7 +3,7 @@ package day17
 import readInput
 import java.lang.Exception
 
-val skipDebugConsole = true
+var skipDebugConsole = true
 
 data class Coordinate(val x: Int, val y: Int) {
     val key = "$x $y"
@@ -68,13 +68,14 @@ fun Set<Shape>.draw(bottomY: Int, maxX: Int, currShape: Shape) {
 
     val line = "".padStart(maxX + 1, '-')
     println("    +$line+")
+
+
+    Thread.sleep(600)
 }
 
 fun log(msg: String) {
     if (skipDebugConsole) return
 
-    println()
-    println()
     println(msg)
 }
 
@@ -89,9 +90,11 @@ fun main() {
 
     fun parsePushes(input: String): List<PushDirection> {
         return input.toList().map { char ->
-            if (char == '>') PushDirection.RIGHT
-            else if (char == '<') PushDirection.LEFT
-            else throw Exception("Invalid Input")
+            when (char) {
+                '>' -> PushDirection.RIGHT
+                '<' -> PushDirection.LEFT
+                else -> throw Exception("Invalid Input")
+            }
         }
     }
 
@@ -154,12 +157,15 @@ fun main() {
             }
         }
 
-        currShapeIndex = (currShapeIndex + 1) % 4
+        currShapeIndex = (currShapeIndex + 1) % 5
 
         return Shape(spots)
     }
 
     fun part1(input: List<String>, stop: Int): Int {
+        currShapeIndex = 0
+        currInstructionIndex = 0
+
         val directions = parsePushes(input.first())
 
         val settledShapes = mutableSetOf<Shape>()
@@ -169,7 +175,7 @@ fun main() {
         while (settledShapes.size < stop) {
             val occupied = settledShapes.occupiedSpots()
 
-            var shape = getNextShape(bottomY)
+            val shape = getNextShape(bottomY)
 
             log("Shape ${settledShapes.size + 1} has started falling")
             settledShapes.draw(bottomY + 5, 6, shape)
@@ -219,11 +225,73 @@ fun main() {
             settledShapes.add(shape)
         }
 
-        return bottomY
+        return bottomY + 1
     }
 
-    fun part2(input: List<String>): Int {
-        return 0
+    fun part2(input: List<String>, stop: Int): Int {
+        currShapeIndex = 0
+        currInstructionIndex = 0
+
+        val directions = parsePushes(input.first())
+
+        val settledShapes = mutableSetOf<Shape>()
+
+        var bottomY = -1
+
+        while (settledShapes.size < stop) {
+            val occupied = settledShapes.occupiedSpots()
+
+            val shape = getNextShape(bottomY)
+
+            log("Shape ${settledShapes.size + 1} has started falling")
+            settledShapes.draw(bottomY + 5, 6, shape)
+
+            var settled = false
+
+            while (!settled) {
+
+                when (getNextPushDirection(directions)) {
+                    PushDirection.LEFT -> {
+                        if (shape.canMoveLeft(occupied)){
+                            shape.moveLeft()
+                            log("Shape pushed to the Left")
+                        }
+                        else {
+                            log("Shape couldn't be moved Left")
+                        }
+                    }
+                    PushDirection.RIGHT -> {
+                        if (shape.canMoveRight(occupied, 6)) {
+                            shape.moveRight()
+                            log("Shape pushed to the Right")
+                        }
+                        else {
+                            log("Shape couldn't be moved Right")
+                        }
+                    }
+                }
+
+                settledShapes.draw(bottomY + 5, 6, shape)
+
+                if (shape.canMoveDown(occupied)) {
+                    shape.moveDown()
+
+                    log("Shape moved Down")
+                } else {
+                    settled = true
+
+                    log("Shape has settled")
+                }
+
+                settledShapes.draw(bottomY + 5, 6, shape)
+            }
+
+            bottomY = maxOf(bottomY, shape.spots.maxOf { it.y })
+
+            settledShapes.add(shape)
+        }
+
+        return bottomY + 1
     }
 
     val testInput = readInput("Day17_test")
@@ -236,10 +304,10 @@ fun main() {
 
     println("Part 1 [Real] : ${part1(input, 2022)}")
 
-    part2(testInput).also {
-        println("Part 2 [Test] : $it")
-        check(it == 0)
-    }
-
-    println("Part 2 [Real] : ${part2(input)}")
+//    part2(testInput, 1000000000000L).also {
+//        println("Part 2 [Test] : $it")
+//        check(it == 0)
+//    }
+//
+//    println("Part 2 [Real] : ${part2(input, 1000000000000L)}")
 }
