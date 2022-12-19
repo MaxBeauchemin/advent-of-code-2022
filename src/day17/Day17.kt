@@ -3,6 +3,8 @@ package day17
 import readInput
 import java.lang.Exception
 
+val skipDebugConsole = true
+
 data class Coordinate(val x: Int, val y: Int) {
     val key = "$x $y"
     fun left() = Coordinate(x - 1, y)
@@ -48,23 +50,32 @@ data class Shape(
 
 fun Set<Shape>.occupiedSpots() = this.flatMap { it.spots.map { s -> s.key } }.toSet()
 
-fun Set<Shape>.draw(bottomY: Int, maxX: Int) {
+fun Set<Shape>.draw(bottomY: Int, maxX: Int, currShape: Shape) {
+    if (skipDebugConsole) return
+
     val occupied = this.occupiedSpots()
 
-    println()
     println()
     println()
 
     for (y in bottomY downTo 0) {
         var str = ""
         for (x in 0..maxX) {
-            str += if (occupied.contains("$x $y")) '#' else '.'
+            str += if (occupied.contains("$x $y")) '#' else if (currShape.spots.any { it.key == "$x $y" }) '@' else '.'
         }
         println("${y.toString().padStart(3, ' ')} |$str|")
     }
 
     val line = "".padStart(maxX + 1, '-')
     println("    +$line+")
+}
+
+fun log(msg: String) {
+    if (skipDebugConsole) return
+
+    println()
+    println()
+    println(msg)
 }
 
 enum class PushDirection{
@@ -74,6 +85,7 @@ enum class PushDirection{
 
 fun main() {
     var currShapeIndex = 0
+    var currInstructionIndex = 0
 
     fun parsePushes(input: String): List<PushDirection> {
         return input.toList().map { char ->
@@ -83,8 +95,12 @@ fun main() {
         }
     }
 
-    fun getNextPushDirection(directions: List<PushDirection>, index: Int): PushDirection {
-        return directions[index % directions.size]
+    fun getNextPushDirection(directions: List<PushDirection>): PushDirection {
+        val direction = directions[currInstructionIndex]
+
+        currInstructionIndex = (currInstructionIndex + 1) % directions.size
+
+        return direction
     }
 
     fun getNextShape(highestY: Int): Shape {
@@ -148,44 +164,57 @@ fun main() {
 
         val settledShapes = mutableSetOf<Shape>()
 
-        var bottomY = 0
-        var counter = 0
+        var bottomY = -1
 
         while (settledShapes.size < stop) {
             val occupied = settledShapes.occupiedSpots()
 
             var shape = getNextShape(bottomY)
 
+            log("Shape ${settledShapes.size + 1} has started falling")
+            settledShapes.draw(bottomY + 5, 6, shape)
+
             var settled = false
-            var settlingNext = false
 
             while (!settled) {
 
-                when (getNextPushDirection(directions, counter)) {
+                when (getNextPushDirection(directions)) {
                     PushDirection.LEFT -> {
-                        if (shape.canMoveLeft(occupied)) shape.moveLeft()
+                        if (shape.canMoveLeft(occupied)){
+                            shape.moveLeft()
+                            log("Shape pushed to the Left")
+                        }
+                        else {
+                            log("Shape couldn't be moved Left")
+                        }
                     }
                     PushDirection.RIGHT -> {
-                        if (shape.canMoveRight(occupied, 6)) shape.moveRight()
+                        if (shape.canMoveRight(occupied, 6)) {
+                            shape.moveRight()
+                            log("Shape pushed to the Right")
+                        }
+                        else {
+                            log("Shape couldn't be moved Right")
+                        }
                     }
                 }
 
-                if (settlingNext){
-                    settled = true
+                settledShapes.draw(bottomY + 5, 6, shape)
+
+                if (shape.canMoveDown(occupied)) {
+                    shape.moveDown()
+
+                    log("Shape moved Down")
                 } else {
-                    if (shape.canMoveDown(occupied)) {
-                        shape.moveDown()
-                    } else {
-                        settlingNext = true
-                    }
+                    settled = true
+
+                    log("Shape has settled")
                 }
 
-                counter++
+                settledShapes.draw(bottomY + 5, 6, shape)
             }
 
             bottomY = maxOf(bottomY, shape.spots.maxOf { it.y })
-
-            //settledShapes.plus(shape).draw(bottomY + 5, 6)
 
             settledShapes.add(shape)
         }
